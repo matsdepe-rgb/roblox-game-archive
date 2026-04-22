@@ -46,13 +46,19 @@
     const githubApiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`;
     let allGames = [];
 
+    // This ensures the script waits for the HTML to load before running
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+    });
+
     async function init() {
+        const loader = document.getElementById('loader');
         try {
             const response = await fetch(githubApiUrl);
             const files = await response.json();
             
             if (!Array.isArray(files)) {
-                document.getElementById('loader').innerText = "Error: 'Games' folder not found or API limit reached.";
+                loader.innerText = "Error: 'Games' folder not found or API limit reached.";
                 return;
             }
 
@@ -61,13 +67,13 @@
                 .map(f => f.name.replace('.rbxlx', ''));
 
             if (gameIds.length === 0) {
-                document.getElementById('loader').innerText = "No .rbxlx files found in /Games.";
+                loader.innerText = "No .rbxlx files found in /Games.";
                 return;
             }
 
             await fetchRobloxData(gameIds);
         } catch (e) {
-            document.getElementById('loader').innerText = "Failed to load GitHub data.";
+            loader.innerText = "Failed to load GitHub data.";
             console.error(e);
         }
     }
@@ -76,22 +82,21 @@
         try {
             const idString = ids.join(',');
             
-            // 1. Get Icons (Mass request)
+            // 1. Get Icons
             const iconsUrl = `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`;
             const iconsRes = await fetch(`${proxy}${encodeURIComponent(iconsUrl)}`);
             const iconsData = await iconsRes.json();
 
-            // 2. Get Names (Individual requests to avoid 401/Unauthorized errors)
+            // 2. Get Names
             const gameDataPromises = ids.map(async (id) => {
-                let foundName = `Game ${id}`; // Fallback
+                let foundName = `Game ${id}`;
                 
                 try {
-                    // Using Economy API which is generally more public than Games API
+                    // Using Economy API for public names
                     const detailUrl = `https://economy.roblox.com/v2/assets/${id}/details`;
                     const detailRes = await fetch(`${proxy}${encodeURIComponent(detailUrl)}`);
                     const detail = await detailRes.json();
                     
-                    // Case-sensitive check: Economy API uses "Name"
                     if (detail.Name) {
                         foundName = detail.Name;
                     }
@@ -115,7 +120,7 @@
 
         } catch (err) {
             console.error("Roblox API Error:", err);
-            document.getElementById('loader').innerText = "Error fetching Roblox data. Try refreshing.";
+            document.getElementById('loader').innerText = "Error fetching Roblox data.";
         }
     }
 
@@ -132,15 +137,14 @@
         `).join('');
     }
 
-    function filterGames() {
+    // This needs to be global for the HTML onkeyup to see it
+    window.filterGames = function() {
         const query = document.getElementById('searchBar').value.toLowerCase();
         const filtered = allGames.filter(g => 
             g.name.toLowerCase().includes(query) || g.id.toString().includes(query)
         );
         renderGames(filtered);
     }
-
-    init();
 </script>
 
 </body>
