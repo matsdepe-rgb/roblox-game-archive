@@ -124,18 +124,38 @@
         }
     }
 
-    function renderGames(games) {
-        const grid = document.getElementById('gameGrid');
-        grid.innerHTML = games.map(game => `
-            <a href="${game.downloadUrl}" class="game-card" download="${game.name}.rbxlx">
-                <img class="game-icon" src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png'">
-                <div class="game-info">
-                    <p class="game-title">${game.name}</p>
-                    <p class="game-id">ID: ${game.id}</p>
-                </div>
-            </a>
-        `).join('');
+   function renderGames(games) {
+    const grid = document.getElementById('gameGrid');
+    grid.innerHTML = games.map(game => `
+        <div class="game-card" onclick="downloadFile('${game.downloadUrl}', '${game.name}.rbxlx')">
+            <img class="game-icon" src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png'">
+            <div class="game-info">
+                <p class="game-title">${game.name}</p>
+                <p class="game-id">ID: ${game.id}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Add this new function to handle the forced download
+async function downloadFile(url, filename) {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+        console.error("Download failed:", err);
+        alert("Failed to download file. Try right-clicking and 'Save Link As'.");
     }
+}
 
     // This needs to be global for the HTML onkeyup to see it
     window.filterGames = function() {
