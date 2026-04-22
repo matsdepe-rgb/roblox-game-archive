@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Dev Learning Lab</title>
+    <style>
+        :root { --rbx-blue: #00A2FF; --bg: #1a1a1a; --card-bg: #2a2a2a; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; }
+        header { text-align: center; padding: 40px 0; }
+        .search-container { max-width: 600px; margin: 0 auto 40px; position: relative; }
+        #searchBar { width: 100%; padding: 15px; border-radius: 25px; border: none; font-size: 16px; outline: none; }
+        
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
+        .game-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; transition: transform 0.2s; cursor: pointer; text-decoration: none; color: white; border: 1px solid #333; }
+        .game-card:hover { transform: translateY(-5px); border-color: var(--rbx-blue); }
+        .game-icon { width: 100%; aspect-ratio: 1/1; background: #333; object-fit: cover; }
+        .game-info { padding: 15px; }
+        .game-title { font-weight: bold; margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .game-id { font-size: 12px; color: #888; }
+        .loader { text-align: center; color: var(--rbx-blue); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🛠️ Roblox Game Archive</h1>
+    <p>Click a game to download the source file for study.</p>
+</header>
+
+<div class="search-container">
+    <input type="text" id="searchBar" placeholder="Search by Game Name or ID..." onkeyup="filterGames()">
+</div>
+
+<div id="loader" class="loader">Fetching game data...</div>
+<div class="game-grid" id="gameGrid"></div>
+
+<script>
+    // --- CONFIGURATION: CHANGE THESE ---
+    const GITHUB_USER = 'matsdepe-rgb';
+    const GITHUB_REPO = 'roblox-game-archive';
+    // ----------------------------------
+
+    const proxy = "https://corsproxy.io/?"; // Free CORS Proxy
+    const gamesFolderUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`;
+    let allGames = [];
+
+    async function init() {
+        try {
+            const response = await fetch(gamesFolderUrl);
+            const files = await response.json();
+            
+            // Filter only .rbxlx files and get IDs
+            const gameIds = files
+                .filter(f => f.name.endsWith('.rbxlx'))
+                .map(f => f.name.replace('.rbxlx', ''));
+
+            if (gameIds.length === 0) {
+                document.getElementById('loader').innerText = "No games found in /Games folder.";
+                return;
+            }
+
+            // Fetch info for all IDs from Roblox API
+            await fetchRobloxData(gameIds);
+        } catch (e) {
+            document.getElementById('loader').innerText = "Error loading repository data.";
+        }
+    }
+
+    async function fetchRobloxData(ids) {
+        const idString = ids.join(',');
+        
+        // 1. Get Game Details (Title/UniverseId)
+        const detailsRes = await fetch(`${proxy}https://games.roblox.com/v1/games/multiget-place-details?placeIds=${idString}`);
+        const details = await detailsRes.json();
+
+        // 2. Get Icons
+        const iconsRes = await fetch(`${proxy}https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`);
+        const icons = await iconsRes.json();
+
+        // Combine data
+        allGames = details.map(game => {
+            const iconObj = icons.data.find(i => i.targetId === game.placeId);
+            return {
+                id: game.placeId,
+                name: game.name,
+                icon: iconObj ? iconObj.imageUrl : '',
+                downloadUrl: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/Games/${game.placeId}.rbxlx`
+            };
+        });
+
+        document.getElementById('loader').style.display = 'none';
+        renderGames(allGames);
+    }
+
+    function renderGames(games) {
+        const grid = document.getElementById('gameGrid');
+        grid.innerHTML = games.map(game => `
+            <a href="${game.downloadUrl}" class="game-card" download>
+                <img class="game-icon" src="${game.icon}" alt="${game.name}">
+                <div class="game-info">
+                    <p class="game-title">${game.name}</p>
+                    <p class="game-id">ID: ${game.id}</p>
+                </div>
+            </a>
+        `).join('');
+    }
+
+    function filterGames() {
+        const query = document.getElementById('searchBar').value.toLowerCase();
+        const filtered = allGames.filter(g => 
+            g.name.toLowerCase().includes(query) || g.id.toString().includes(query)
+        );
+        renderGames(filtered);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
