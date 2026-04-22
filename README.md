@@ -1,6 +1,6 @@
-# 🛠️ Roblox game archive
+# 🛠️ Roblox Game Archive
 
-Welcome to the **Learning Lab**! This repository is a curated collection of Roblox Studio place files (`.rbxl`) and scripts from popular game frameworks. 
+Welcome to the **Game Archive**! This repository is a curated collection of Roblox Studio place files (`.rbxl`) and scripts from popular game frameworks. 
 
 The goal of this project is to provide aspiring developers with a "look under the hood" of professional-grade systems to understand how game logic, data stores, and client-server communication work in a production environment.
 
