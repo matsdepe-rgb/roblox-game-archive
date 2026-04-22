@@ -43,25 +43,43 @@
     const gamesFolderUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`;
     let allGames = [];
 
-    async function init() {
-        try {
-            const response = await fetch(gamesFolderUrl);
-            const files = await response.json();
-            
-            const gameIds = files
-                .filter(f => f.name.endsWith('.rbxlx'))
-                .map(f => f.name.replace('.rbxlx', ''));
+    async function fetchRobloxData(ids) {
+    try {
+        // 1. Get Icons (This API is usually fine with the proxy)
+        const idString = ids.join(',');
+        const iconsRes = await fetch(`${proxy}${encodeURIComponent(`https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`)}`);
+        const icons = await iconsRes.json();
 
-            if (gameIds.length === 0) {
-                document.getElementById('loader').innerText = "No games found in /Games folder.";
-                return;
+        // 2. Get Game Details (Name/Title) using a more public-friendly endpoint
+        // We fetch them individually to avoid the 401 multi-get restriction
+        const gameDataPromises = ids.map(async (id) => {
+            try {
+                const detailRes = await fetch(`${proxy}${encodeURIComponent(`https://economy.roblox.com/v2/assets/${id}/details`)}`);
+                const detail = await detailRes.json();
+                
+                const iconObj = icons.data ? icons.data.find(i => i.targetId == id) : null;
+                
+                return {
+                    id: id,
+                    name: detail.Name || `Game ${id}`,
+                    icon: iconObj ? iconObj.imageUrl : 'https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png',
+                    downloadUrl: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/Games/${id}.rbxlx`
+                };
+            } catch (err) {
+                return { id: id, name: `Game ${id}`, icon: '', downloadUrl: '' };
             }
+        });
 
-            await fetchRobloxData(gameIds);
-        } catch (e) {
-            document.getElementById('loader').innerText = "Error loading repository data.";
-        }
+        allGames = await Promise.all(gameDataPromises);
+
+        document.getElementById('loader').style.display = 'none';
+        renderGames(allGames);
+
+    } catch (err) {
+        console.error("Roblox API Error:", err);
+        document.getElementById('loader').innerText = "Failed to load icons. Try refreshing.";
     }
+}
 
     async function fetchRobloxData(ids) {
         const idString = ids.join(',');
