@@ -37,7 +37,6 @@
 <div class="game-grid" id="gameGrid"></div>
 
 <script>
-    // --- CONFIGURATION ---
     const GITHUB_USER = 'matsdepe-rgb';
     const GITHUB_REPO = 'roblox-game-archive';
     const BRANCH = 'main'; 
@@ -46,7 +45,6 @@
     const githubApiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`;
     let allGames = [];
 
-    // This ensures the script waits for the HTML to load before running
     document.addEventListener('DOMContentLoaded', () => {
         init();
     });
@@ -58,7 +56,7 @@
             const files = await response.json();
             
             if (!Array.isArray(files)) {
-                loader.innerText = "Error: 'Games' folder not found or API limit reached.";
+                loader.innerText = "Error: 'Games' folder not found.";
                 return;
             }
 
@@ -67,49 +65,38 @@
                 .map(f => f.name.replace('.rbxlx', ''));
 
             if (gameIds.length === 0) {
-                loader.innerText = "No .rbxlx files found in /Games.";
+                loader.innerText = "No .rbxlx files found.";
                 return;
             }
 
             await fetchRobloxData(gameIds);
         } catch (e) {
             loader.innerText = "Failed to load GitHub data.";
-            console.error(e);
         }
     }
 
     async function fetchRobloxData(ids) {
         try {
             const idString = ids.join(',');
-            
-            // 1. Get Icons
             const iconsUrl = `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`;
             const iconsRes = await fetch(`${proxy}${encodeURIComponent(iconsUrl)}`);
             const iconsData = await iconsRes.json();
 
-            // 2. Get Names
             const gameDataPromises = ids.map(async (id) => {
                 let foundName = `Game ${id}`;
-                
                 try {
-                    // Using Economy API for public names
                     const detailUrl = `https://economy.roblox.com/v2/assets/${id}/details`;
                     const detailRes = await fetch(`${proxy}${encodeURIComponent(detailUrl)}`);
                     const detail = await detailRes.json();
-                    
-                    if (detail.Name) {
-                        foundName = detail.Name;
-                    }
-                } catch (err) {
-                    console.warn(`Could not fetch name for ID ${id}`);
-                }
+                    if (detail.Name) foundName = detail.Name;
+                } catch (err) { console.warn(`No name for ${id}`); }
 
                 const iconObj = iconsData.data ? iconsData.data.find(i => i.targetId == id) : null;
                 
                 return {
                     id: id,
                     name: foundName,
-                    icon: iconObj ? iconObj.imageUrl : 'https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png',
+                    icon: iconObj ? iconObj.imageUrl : '',
                     downloadUrl: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}/Games/${id}.rbxlx`
                 };
             });
@@ -117,47 +104,43 @@
             allGames = await Promise.all(gameDataPromises);
             document.getElementById('loader').style.display = 'none';
             renderGames(allGames);
-
         } catch (err) {
-            console.error("Roblox API Error:", err);
             document.getElementById('loader').innerText = "Error fetching Roblox data.";
         }
     }
 
-   function renderGames(games) {
-    const grid = document.getElementById('gameGrid');
-    grid.innerHTML = games.map(game => `
-        <div class="game-card" onclick="downloadFile('${game.downloadUrl}', '${game.name}.rbxlx')">
-            <img class="game-icon" src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png'">
-            <div class="game-info">
-                <p class="game-title">${game.name}</p>
-                <p class="game-id">ID: ${game.id}</p>
+    function renderGames(games) {
+        const grid = document.getElementById('gameGrid');
+        grid.innerHTML = games.map(game => `
+            <div class="game-card" onclick="forceDownload('${game.downloadUrl}', '${game.name.replace(/[^a-z0-9]/gi, '_')}.rbxlx')">
+                <img class="game-icon" src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png'">
+                <div class="game-info">
+                    <p class="game-title">${game.name}</p>
+                    <p class="game-id">ID: ${game.id}</p>
+                </div>
             </div>
-        </div>
-    `).join('');
-}
-
-// Add this new function to handle the forced download
-async function downloadFile(url, filename) {
-    try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-        console.error("Download failed:", err);
-        alert("Failed to download file. Try right-clicking and 'Save Link As'.");
+        `).join('');
     }
-}
 
-    // This needs to be global for the HTML onkeyup to see it
+    // NEW: Forces the browser to download the file instead of opening it
+    async function forceDownload(url, filename) {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            alert("Download failed. Try right-clicking the card and selecting 'Save Link As'.");
+        }
+    }
+
     window.filterGames = function() {
         const query = document.getElementById('searchBar').value.toLowerCase();
         const filtered = allGames.filter(g => 
