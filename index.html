@@ -6,19 +6,53 @@
     <title>Roblox Game Archive</title>
     <link rel="icon" href="data:,">
     <style>
-        :root { --rbx-blue: #00A2FF; --bg: #1a1a1a; --card-bg: #2a2a2a; }
+        :root { --rbx-blue: #00A2FF; --bg: #1a1a1a; --card-bg: #2a2a2a; --green: #2ecc71; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; }
-        header { text-align: center; padding: 40px 0; }
-        .search-container { max-width: 600px; margin: 0 auto 40px; position: relative; }
-        #searchBar { width: 100%; padding: 15px; border-radius: 25px; border: none; font-size: 16px; outline: none; background: #333; color: white; }
         
-        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
-        .game-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; transition: transform 0.2s; cursor: pointer; text-decoration: none; color: white; border: 1px solid #333; display: flex; flex-direction: column; }
+        header { text-align: center; padding: 40px 0; }
+        .nav-buttons { text-align: center; margin-bottom: 20px; }
+        
+        .request-btn { 
+            background: var(--green); border: none; color: white; padding: 12px 24px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; 
+        }
+        .request-btn:hover { background: #27ae60; transform: scale(1.05); }
+
+        .search-container { max-width: 600px; margin: 0 auto 40px; }
+        #searchBar { 
+            width: 100%; padding: 15px; border-radius: 25px; border: none; 
+            font-size: 16px; outline: none; background: #333; color: white; 
+        }
+
+        .game-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+            gap: 20px; max-width: 1100px; margin: 0 auto; 
+        }
+        .game-card { 
+            background: var(--card-bg); border-radius: 12px; overflow: hidden; 
+            transition: 0.2s; cursor: pointer; border: 1px solid #333; position: relative;
+        }
         .game-card:hover { transform: translateY(-5px); border-color: var(--rbx-blue); }
         .game-icon { width: 100%; aspect-ratio: 1/1; background: #333; object-fit: cover; }
-        .game-info { padding: 15px; flex-grow: 1; }
-        .game-title { font-weight: bold; margin: 0; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .game-info { padding: 15px; }
+        .game-title { font-weight: bold; margin: 0; font-size: 14px; color: #fff; }
         .game-id { font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); }
+        .modal-content { 
+            background: var(--card-bg); margin: 10% auto; padding: 30px; 
+            border-radius: 15px; max-width: 400px; text-align: center; border: 1px solid #444;
+        }
+        .modal-input { 
+            width: 90%; padding: 12px; margin: 15px 0; border-radius: 8px; 
+            border: 1px solid #444; background: #111; color: white; font-size: 16px;
+        }
+        .modal-submit { 
+            background: var(--rbx-blue); color: white; border: none; 
+            padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; 
+        }
+        
         .loader { text-align: center; color: var(--rbx-blue); font-weight: bold; margin-top: 50px; }
     </style>
 </head>
@@ -26,37 +60,52 @@
 
 <header>
     <h1>🛠️ Roblox Game Archive</h1>
-    <p>Educational repository for studying game frameworks and logic.</p>
+    <div class="nav-buttons">
+        <button class="request-btn" onclick="openModal()">➕ Request New Game</button>
+    </div>
 </header>
 
 <div class="search-container">
-    <input type="text" id="searchBar" placeholder="Search by Game Name or ID..." onkeyup="filterGames()">
+    <input type="text" id="searchBar" placeholder="Search archive by name or ID..." onkeyup="filterGames()">
 </div>
 
-<div id="loader" class="loader">Loading Repository Files...</div>
+<div id="loader" class="loader">Fetching Repository Files...</div>
 <div class="game-grid" id="gameGrid"></div>
 
+<div id="requestModal" class="modal">
+    <div class="modal-content">
+        <h2>Submit Request</h2>
+        <p>Enter the Roblox Place ID you'd like added:</p>
+        <input type="number" id="placeIdInput" class="modal-input" placeholder="e.g. 18542048">
+        <br>
+        <button class="modal-submit" id="submitBtn" onclick="submitRequest()">Send to Discord</button>
+        <br>
+        <button onclick="closeModal()" style="background:none; border:none; color:#888; cursor:pointer; margin-top:15px; text-decoration: underline;">Cancel</button>
+    </div>
+</div>
+
 <script>
+    // --- CONFIGURATION ---
     const GITHUB_USER = 'matsdepe-rgb';
     const GITHUB_REPO = 'roblox-game-archive';
-    const BRANCH = 'main'; 
-
+    const BRANCH = 'main';
+    // PASTE YOUR GOOGLE SCRIPT URL HERE (ends in /exec)
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwu7z3AV8TM-JjgV5OJY1m7dGhBONTLtdU1FWvQGHhWca3CC67o7mrlVhOpIWFBWeQR/exec'; 
     const proxy = "https://corsproxy.io/?"; 
-    const githubApiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`;
+    
     let allGames = [];
 
-    document.addEventListener('DOMContentLoaded', () => {
-        init();
-    });
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => init());
 
     async function init() {
         const loader = document.getElementById('loader');
         try {
-            const response = await fetch(githubApiUrl);
+            const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/Games`);
             const files = await response.json();
             
             if (!Array.isArray(files)) {
-                loader.innerText = "Error: 'Games' folder not found.";
+                loader.innerText = "Error: Repository folder not found.";
                 return;
             }
 
@@ -65,38 +114,37 @@
                 .map(f => f.name.replace('.rbxlx', ''));
 
             if (gameIds.length === 0) {
-                loader.innerText = "No .rbxlx files found.";
+                loader.innerText = "No archived games found in /Games.";
                 return;
             }
 
             await fetchRobloxData(gameIds);
         } catch (e) {
-            loader.innerText = "Failed to load GitHub data.";
+            loader.innerText = "Failed to reach GitHub API.";
         }
     }
 
+    // --- DATA FETCHING ---
     async function fetchRobloxData(ids) {
         try {
             const idString = ids.join(',');
-            const iconsUrl = `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`;
-            const iconsRes = await fetch(`${proxy}${encodeURIComponent(iconsUrl)}`);
+            const iconsRes = await fetch(`${proxy}${encodeURIComponent(`https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${idString}&size=512x512&format=Png&isCircular=false`)}`);
             const iconsData = await iconsRes.json();
 
             const gameDataPromises = ids.map(async (id) => {
-                let foundName = `Game ${id}`;
+                let name = `Game ${id}`;
                 try {
-                    const detailUrl = `https://economy.roblox.com/v2/assets/${id}/details`;
-                    const detailRes = await fetch(`${proxy}${encodeURIComponent(detailUrl)}`);
-                    const detail = await detailRes.json();
-                    if (detail.Name) foundName = detail.Name;
-                } catch (err) { console.warn(`No name for ${id}`); }
+                    const res = await fetch(`${proxy}${encodeURIComponent(`https://economy.roblox.com/v2/assets/${id}/details`)}`);
+                    const data = await res.json();
+                    if (data.Name) name = data.Name;
+                } catch (e) {}
 
-                const iconObj = iconsData.data ? iconsData.data.find(i => i.targetId == id) : null;
+                const iconObj = iconsData.data?.find(i => i.targetId == id);
                 
                 return {
                     id: id,
-                    name: foundName,
-                    icon: iconObj ? iconObj.imageUrl : '',
+                    name: name,
+                    icon: iconObj ? iconObj.imageUrl : 'https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png',
                     downloadUrl: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}/Games/${id}.rbxlx`
                 };
             });
@@ -105,15 +153,16 @@
             document.getElementById('loader').style.display = 'none';
             renderGames(allGames);
         } catch (err) {
-            document.getElementById('loader').innerText = "Error fetching Roblox data.";
+            document.getElementById('loader').innerText = "Error loading Roblox data.";
         }
     }
 
+    // --- UI RENDERING ---
     function renderGames(games) {
         const grid = document.getElementById('gameGrid');
         grid.innerHTML = games.map(game => `
             <div class="game-card" onclick="forceDownload('${game.downloadUrl}', '${game.name.replace(/[^a-z0-9]/gi, '_')}.rbxlx')">
-                <img class="game-icon" src="${game.icon}" onerror="this.src='https://tr.rbxcdn.com/53ebcb1015f850c890184e908f61537e/420/420/Image/Png'">
+                <img class="game-icon" src="${game.icon}">
                 <div class="game-info">
                     <p class="game-title">${game.name}</p>
                     <p class="game-id">ID: ${game.id}</p>
@@ -122,13 +171,12 @@
         `).join('');
     }
 
-    // NEW: Forces the browser to download the file instead of opening it
+    // --- DOWNLOAD LOGIC ---
     async function forceDownload(url, filename) {
         try {
             const response = await fetch(url);
             const blob = await response.blob();
             const blobUrl = window.URL.createObjectURL(blob);
-            
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = filename;
@@ -137,10 +185,52 @@
             document.body.removeChild(link);
             window.URL.revokeObjectURL(blobUrl);
         } catch (err) {
-            alert("Download failed. Try right-clicking the card and selecting 'Save Link As'.");
+            alert("Download failed. Right-click and 'Save As' instead.");
         }
     }
 
+    // --- REQUEST SYSTEM ---
+    function openModal() { document.getElementById('requestModal').style.display = 'block'; }
+    function closeModal() { document.getElementById('requestModal').style.display = 'none'; }
+
+    async function submitRequest() {
+        const id = document.getElementById('placeIdInput').value;
+        if (!id) return alert("Please enter a valid Place ID.");
+
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Sending...";
+        btn.disabled = true;
+
+        try {
+            // Get data for Discord embed
+            const detailRes = await fetch(`${proxy}${encodeURIComponent(`https://economy.roblox.com/v2/assets/${id}/details`)}`);
+            const detail = await detailRes.json();
+            const gameName = detail.Name || "Unknown Game";
+
+            const iconRes = await fetch(`${proxy}${encodeURIComponent(`https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${id}&size=512x512&format=Png`)}`);
+            const iconData = await iconRes.json();
+            const iconUrl = iconData.data?.[0]?.imageUrl || "";
+
+            // Send to Google Script Relay
+            await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ id, gameName, iconUrl })
+            });
+
+            alert("Request sent! Check Discord soon.");
+            closeModal();
+            document.getElementById('placeIdInput').value = "";
+        } catch (err) {
+            alert("Request submitted!"); 
+            closeModal();
+        } finally {
+            btn.innerText = "Send to Discord";
+            btn.disabled = false;
+        }
+    }
+
+    // --- SEARCH LOGIC ---
     window.filterGames = function() {
         const query = document.getElementById('searchBar').value.toLowerCase();
         const filtered = allGames.filter(g => 
