@@ -17,7 +17,6 @@ By downloading or forking this repository, you agree to the following terms:
 
 ### ❌ You ARE NOT allowed to:
 * **Redistribute** these files or their contents publicly on GitHub, Discord, or the Roblox Creator Marketplace.
-* **Re-upload** these games as your own to the Roblox platform.
 * **Claim ownership** of the original source code or assets.
 
 > [!IMPORTANT]
@@ -38,7 +37,7 @@ The repository is organized by game type or specific mechanic to help you find w
 
 ## 🚀 How to Get Started
 
-1.  **Clone or Download**: Click the green `<> Code` button and select "Download ZIP."
+1.  **Clone or Download**: Click the green `<> Code` button and select "Download ZIP. Or visit the site and search for your preffered game."
 2.  **Open in Studio**: Launch Roblox Studio, click **File > Open from disk**, and select the `.rbxl` file you wish to study.
 3.  **Explore the Explorer**: Focus on `ServerScriptService` for the "brains" of the game and `StarterPlayerScripts` for the player experience.
 4.  **Use the Output**: Keep your Output window open (`View > Output`) to see how these scripts log information and handle errors.
